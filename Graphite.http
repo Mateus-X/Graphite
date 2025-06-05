@@ -1,0 +1,6 @@
+@Graphite_HostAddress = http://localhost:5273
+
+GET {{Graphite_HostAddress}}/Dataframe/
+Accept: application/json
+
+###
