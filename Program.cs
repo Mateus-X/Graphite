@@ -1,30 +1,55 @@
+using Graphite.Database;
+using Graphite.Source.Domain.Entities;
+using Graphite.Source.Domain.Interfaces;
+using Graphite.Source.Infrastructure.Repositories;
+using Graphite.Source.Infrastructure.Swagger;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Graphite.Database;
-using Graphite.Source.Domain.Entities; // Ajuste conforme a localização da entidade
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore; // Adicionada para corrigir o erro
-using Microsoft.Extensions.DependencyInjection; // Adicionada para corrigir o erro
-using Microsoft.EntityFrameworkCore.SqlServer; // Adicionada para corrigir o erro
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Adiciona serviços ao contêiner
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.OperationFilter<FileUploadOperationFilter>();
+});
 
 builder.Services.AddDbContext<ApplicationDatabaseContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddIdentity<User, IdentityRole>(options =>
+builder.Services.AddCors(options =>
 {
-    options.Password.RequireDigit = true;
-    options.Password.RequiredLength = 8;
-    options.Password.RequireNonAlphanumeric = false;
-    options.User.RequireUniqueEmail = true;
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+builder.Services.AddIdentityCore<User>()
+    .AddEntityFrameworkStores<ApplicationDatabaseContext>()
+    .AddApiEndpoints();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
 })
-.AddEntityFrameworkStores<ApplicationDatabaseContext>()
-.AddDefaultTokenProviders();
+.AddCookie(IdentityConstants.ApplicationScheme)
+.AddBearerToken(IdentityConstants.BearerScheme);
+builder.Services.AddAuthorization();
+
+builder.Services.AddTransient<IDataframeRepository, DataframeRepository>();
+
+// HTTP
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 1209715200;
+});
 
 var app = builder.Build();
 
@@ -37,6 +62,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors();
+
+app.MapIdentityApi<User>();
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

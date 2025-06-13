@@ -2,11 +2,9 @@
 
 namespace Graphite.Source.Domain.Entities
 {
-    public class User : IdentityUser<int>
+    public class User : IdentityUser
     {
-        public string Name { get; set; }
-        public string? Role { get; set; }
 
-        public virtual ICollection<Organization> Organizations { get; set; } = new List<Organization>();
+        public virtual ICollection<Dataframe> Dataframes { get; set; } = new List<Dataframe>();
     }
 }

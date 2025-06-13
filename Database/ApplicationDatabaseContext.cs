@@ -1,14 +1,18 @@
 ﻿using Graphite.Source.Domain.Entities;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Reflection.Emit;
 
 namespace Graphite.Database
 {
-    public class ApplicationDatabaseContext(DbContextOptions<ApplicationDatabaseContext> options) : DbContext(options)
+    public class ApplicationDatabaseContext : IdentityDbContext<User>
     {
-        public DbSet<User> Users => Set<User>();
-        public DbSet<Organization> Organizations => Set<Organization>();
+        public ApplicationDatabaseContext(DbContextOptions<ApplicationDatabaseContext> options)
+            : base(options)
+        {
+        }
+
         public DbSet<Dataframe> Dataframes => Set<Dataframe>();
         public DbSet<DataframeLine> DataframeLines => Set<DataframeLine>();
 
@@ -16,40 +20,29 @@ namespace Graphite.Database
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<User>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.Role).HasMaxLength(100);
-            });
-
-            modelBuilder.Entity<Organization>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.HasOne(e => e.User)
-                      .WithMany(u => u.Organizations)
-                      .HasForeignKey(e => e.UserId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
+            modelBuilder.Entity<User>();
 
             modelBuilder.Entity<Dataframe>(entity =>
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.File).IsRequired().HasMaxLength(255);
-                entity.HasOne(e => e.Organization)
+                entity.HasOne(e => e.User)
                       .WithMany(o => o.Dataframes)
-                      .HasForeignKey(e => e.OrgId)
+                      .HasForeignKey(e => e.UserId)
+                      .IsRequired()
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<DataframeLine>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Data).IsRequired();
+                entity.Property(e => e.Id).HasDefaultValueSql("NEWID()");
+                entity.Property(e => e.Date).IsRequired();
                 entity.Property(e => e.Value).HasColumnType("decimal(18,2)");
                 entity.HasOne(e => e.Dataframe)
                       .WithMany(d => d.DataframeLines)
                       .HasForeignKey(e => e.DataframeId)
+                      .IsRequired()
                       .OnDelete(DeleteBehavior.Cascade);
             });
 

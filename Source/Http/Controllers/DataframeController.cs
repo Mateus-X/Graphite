@@ -1,53 +1,103 @@
-using Microsoft.AspNetCore.Mvc;
-using ClosedXML.Excel;
 using Graphite.Database;
 using Graphite.Source.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
+using Graphite.Source.Domain.Interfaces;
+using Graphite.Source.Domain.Models;
+using Graphite.Source.Infrastructure.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
+using System.Data.Common;
 
 namespace Graphite.Source.Http.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/dataframe")]
     public class DataframeController : ControllerBase
     {
         private readonly ILogger<DataframeController> _logger;
-        private readonly ApplicationDatabaseContext _dbContext;
+        private readonly ApplicationDatabaseContext _context;
+        private readonly IDataframeRepository _dataframeRepository;
+        private readonly UserManager<User> _userManager;
 
-        public DataframeController(ILogger<DataframeController> logger, ApplicationDatabaseContext dbContext)
+        public DataframeController(ILogger<DataframeController> logger, ApplicationDatabaseContext context, IDataframeRepository repository, UserManager<User> userManager)
         {
             _logger = logger;
-            _dbContext = dbContext;
+            _context = context;
+            _dataframeRepository = repository;
+            _userManager = userManager;
         }
 
+        [Authorize]
         [HttpPost("import-xlsx")]
-        public async Task<IActionResult> ImportXlsx([FromForm] IFormFile file)
+        [RequestFormLimits(MultipartBodyLengthLimit = 1209715200)]
+        [RequestSizeLimit(1209715200)]
+        public async Task<IActionResult> ImportXlsx([FromForm] DataframeModel request)
         {
-            if (file == null || file.Length == 0)
-                return BadRequest("Arquivo não enviado.");
+            using var transaction = _context.Database.BeginTransaction();
 
-            var fo
+            List<string> availableFileExtensions = new List<string> { ".xlsx", ".xls", ".xlsb", ".csv" };
 
-            var dataframeLines = new List<DataframeLine>();
+            if (!availableFileExtensions.Contains(Path.GetExtension(request.File.FileName)))
+                return BadRequest("Formato Inválido.");
 
-            using (var stream = file.OpenReadStream())
-            using (var workbook = new XLWorkbook(stream))
+            var fileExtension = Path.GetExtension(request.File.FileName);
+            var tempFilePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + fileExtension);
+
+            try
             {
-                var worksheet = workbook.Worksheets.First();
-                foreach (var row in worksheet.RowsUsed().Skip(1)) 
+
+                var userId = _userManager.GetUserId(User);
+                Console.WriteLine(userId);
+
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized("Usuário não autenticado.");
+
+                if (request.File.Length > 0)
                 {
-                    dataframeLines.Add(new DataframeLine
+                    using (var stream = new FileStream(tempFilePath, FileMode.Create))
                     {
-                        DonatorId = int.Parse(row.Cell(1).GetString()),
-                        Date = DateOnly.Parse(row.Cell(2).GetString()),
-                        Value = row.Cell(3).GetString()
-                    });
+                        await request.File.CopyToAsync(stream);
+                    }
+                }
+
+                var dataframe = new Dataframe
+                {
+                    UserId = userId,
+                    File = request.File.FileName,
+                };
+
+                await _context.AddAsync(dataframe);
+
+                await _context.SaveChangesAsync();
+
+                DataTable dataTable = SpreadsheetReader.SpreadsheetToDataTable(tempFilePath);
+
+                await SqlBulkCopyDataTableService.InsertDataframeLines(
+                    transaction: transaction.GetDbTransaction(),
+                    dataTable: dataTable,
+                    dataframe: dataframe
+                );
+
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+
+                return BadRequest(ex.Message);
+
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempFilePath))
+                {
+                    System.IO.File.Delete(tempFilePath);
                 }
             }
 
-            _dbContext.AddRange(dataframeLines);
-            await _dbContext.SaveChangesAsync();
-
-            return Ok(new { count = dataframeLines.Count });
+            return Ok();
         }
     }
 }
