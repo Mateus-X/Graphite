@@ -19,6 +19,9 @@
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.4" />
+		<PackageReference Include="Sylvan.Data" Version="0.2.16" />
+		<PackageReference Include="Sylvan.Data.Csv" Version="1.4.2" />
+		<PackageReference Include="Sylvan.Data.Excel" Version="0.4.26" />
 	</ItemGroup>
 
 	<ItemGroup>

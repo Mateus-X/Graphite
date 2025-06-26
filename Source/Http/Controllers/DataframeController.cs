@@ -47,7 +47,6 @@ namespace Graphite.Source.Http.Controllers
 
             try
             {
-
                 var userId = _userManager.GetUserId(User);
                 Console.WriteLine(userId);
 
@@ -72,12 +71,10 @@ namespace Graphite.Source.Http.Controllers
 
                 await _context.SaveChangesAsync();
 
-                DataTable dataTable = SpreadsheetReader.SpreadsheetToDataTable(tempFilePath);
-
-                await SqlBulkCopyDataTableService.InsertDataframeLines(
+                await SqlBulkCopySpreadsheetService.InsertDataframeLines(
                     transaction: transaction.GetDbTransaction(),
-                    dataTable: dataTable,
-                    dataframe: dataframe
+                    filePath: tempFilePath,
+                    dataframeId: dataframe.Id
                 );
 
                 await transaction.CommitAsync();
