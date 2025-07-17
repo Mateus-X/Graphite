@@ -1,12 +1,12 @@
 version: '3'
 
 services:
-  furia_kyf_sql_server:
-    container_name: furia_kyf_sql_server
+  graphite_sql_server:
+    container_name: graphite_sql_server
     image: mcr.microsoft.com/mssql/server
     environment:
-      - MSSQL_USER=${DATABASE_USER}
-      - MSSQL_SA_PASSWORD=${DATABASE_PWD}
+      - MSSQL_USER=nagad
+      - MSSQL_SA_PASSWORD=Test1234
       - ACCEPT_EULA=Y
       - TZ=America/Sao_Paulo
     ports:

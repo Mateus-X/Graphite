@@ -162,7 +162,8 @@ namespace Graphite.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    File = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false)
+                    SpreadsheetFilePath = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    HtmlReportFilePath = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -181,9 +182,11 @@ namespace Graphite.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWID()"),
                     DataframeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    DonorId = table.Column<int>(type: "int", nullable: false),
-                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Value = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                    DonorId = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DonationDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ExpirationDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Value = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    PaymentMethod = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {

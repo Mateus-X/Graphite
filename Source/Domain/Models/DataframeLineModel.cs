@@ -2,8 +2,8 @@
 
 namespace Graphite.Source.Domain.Models
 {
-    public class DataframeModel
+    public class DataframeLineModel
     {
-        public required IFormFile File { get; set; }
+        public required string UserId { get; set; }
     }
 }

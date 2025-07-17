@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Graphite.Migrations
 {
     [DbContext(typeof(ApplicationDatabaseContext))]
-    [Migration("20250613164340_InitialCreate")]
+    [Migration("20250717142821_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -31,7 +31,10 @@ namespace Graphite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("File")
+                    b.Property<string>("HtmlReportFilePath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SpreadsheetFilePath")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
@@ -57,11 +60,18 @@ namespace Graphite.Migrations
                     b.Property<Guid>("DataframeId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime>("Date")
+                    b.Property<DateTime>("DonationDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("DonorId")
-                        .HasColumnType("int");
+                    b.Property<string>("DonorId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ExpirationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Value")
                         .HasColumnType("decimal(18,2)");

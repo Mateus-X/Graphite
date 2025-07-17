@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Graphite.Source.Infrastructure.Repositories
 {
-    public class Repository<T>(ApplicationDatabaseContext context) : IRepository<T> where T : class
+    public abstract class Repository<T>(ApplicationDatabaseContext context) : IRepository<T> where T : class
     {
         private readonly ApplicationDatabaseContext _context = context;
 

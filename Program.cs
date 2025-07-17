@@ -6,6 +6,8 @@ using Graphite.Source.Infrastructure.Swagger;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Hangfire;
+using Hangfire.MemoryStorage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +35,20 @@ builder.Services.AddIdentityCore<User>()
     .AddEntityFrameworkStores<ApplicationDatabaseContext>()
     .AddApiEndpoints();
 
+builder.Services.AddHangfire(config =>
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        config.UseMemoryStorage();
+    }
+    else
+    {
+        config.UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"));
+    }
+});
+
+builder.Services.AddHangfireServer();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = IdentityConstants.ApplicationScheme;
@@ -41,11 +57,11 @@ builder.Services.AddAuthentication(options =>
 })
 .AddCookie(IdentityConstants.ApplicationScheme)
 .AddBearerToken(IdentityConstants.BearerScheme);
+
 builder.Services.AddAuthorization();
 
 builder.Services.AddTransient<IDataframeRepository, DataframeRepository>();
 
-// HTTP
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = 1209715200;
@@ -53,7 +69,6 @@ builder.Services.Configure<FormOptions>(options =>
 
 var app = builder.Build();
 
-// Configuração do pipeline HTTP
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -68,6 +83,8 @@ app.MapIdentityApi<User>();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseHangfireDashboard();
 
 app.MapControllers();
 

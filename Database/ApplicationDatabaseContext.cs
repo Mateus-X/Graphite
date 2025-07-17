@@ -25,7 +25,7 @@ namespace Graphite.Database
             modelBuilder.Entity<Dataframe>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.File).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.SpreadsheetFilePath).HasMaxLength(255);
                 entity.HasOne(e => e.User)
                       .WithMany(o => o.Dataframes)
                       .HasForeignKey(e => e.UserId)
@@ -37,7 +37,6 @@ namespace Graphite.Database
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasDefaultValueSql("NEWID()");
-                entity.Property(e => e.Date).IsRequired();
                 entity.Property(e => e.Value).HasColumnType("decimal(18,2)");
                 entity.HasOne(e => e.Dataframe)
                       .WithMany(d => d.DataframeLines)

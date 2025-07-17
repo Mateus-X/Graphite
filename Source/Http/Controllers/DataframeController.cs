@@ -2,7 +2,9 @@ using Graphite.Database;
 using Graphite.Source.Domain.Entities;
 using Graphite.Source.Domain.Interfaces;
 using Graphite.Source.Domain.Models;
+using Graphite.Source.Infrastructure.Repositories;
 using Graphite.Source.Infrastructure.Services;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -16,16 +18,12 @@ namespace Graphite.Source.Http.Controllers
     [Route("api/dataframe")]
     public class DataframeController : ControllerBase
     {
-        private readonly ILogger<DataframeController> _logger;
         private readonly ApplicationDatabaseContext _context;
-        private readonly IDataframeRepository _dataframeRepository;
         private readonly UserManager<User> _userManager;
 
-        public DataframeController(ILogger<DataframeController> logger, ApplicationDatabaseContext context, IDataframeRepository repository, UserManager<User> userManager)
+        public DataframeController(ApplicationDatabaseContext context, UserManager<User> userManager)
         {
-            _logger = logger;
             _context = context;
-            _dataframeRepository = repository;
             _userManager = userManager;
         }
 
@@ -35,20 +33,18 @@ namespace Graphite.Source.Http.Controllers
         [RequestSizeLimit(1209715200)]
         public async Task<IActionResult> ImportXlsx([FromForm] DataframeModel request)
         {
-            using var transaction = _context.Database.BeginTransaction();
-
             List<string> availableFileExtensions = new List<string> { ".xlsx", ".xls", ".xlsb", ".csv" };
 
-            if (!availableFileExtensions.Contains(Path.GetExtension(request.File.FileName)))
+            var fileExtension = Path.GetExtension(request.File.FileName);
+
+            if (!availableFileExtensions.Contains(fileExtension))
                 return BadRequest("Formato Inválido.");
 
-            var fileExtension = Path.GetExtension(request.File.FileName);
             var tempFilePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + fileExtension);
 
             try
             {
                 var userId = _userManager.GetUserId(User);
-                Console.WriteLine(userId);
 
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized("Usuário não autenticado.");
@@ -63,38 +59,29 @@ namespace Graphite.Source.Http.Controllers
 
                 var dataframe = new Dataframe
                 {
+                    Id = Guid.NewGuid(),
                     UserId = userId,
-                    File = request.File.FileName,
+                    SpreadsheetFilePath = tempFilePath,
                 };
 
                 await _context.AddAsync(dataframe);
 
                 await _context.SaveChangesAsync();
 
-                await SqlBulkCopySpreadsheetService.InsertDataframeLines(
-                    transaction: transaction.GetDbTransaction(),
-                    filePath: tempFilePath,
-                    dataframeId: dataframe.Id
-                );
+                BackgroundJob.Enqueue<DataframeProcessorService>(service =>
+                    service.Process(dataframe));
 
-                await transaction.CommitAsync();
+                return Accepted(new { JobId = dataframe.Id, Message = "Processamento iniciado em segundo plano." });
             }
             catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-
-                return BadRequest(ex.Message);
-
-            }
-            finally
             {
                 if (System.IO.File.Exists(tempFilePath))
                 {
                     System.IO.File.Delete(tempFilePath);
                 }
-            }
 
-            return Ok();
+                return BadRequest(ex.Message);
+            }
         }
     }
 }
